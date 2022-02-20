@@ -2,6 +2,7 @@
 TP1 - Multimédia
 David Leitão [2019223148]
 Rodrigo Machado [2019218299]
+Rui Costa [2019224237]
 """
 
 import math
