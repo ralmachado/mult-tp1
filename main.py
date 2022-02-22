@@ -7,14 +7,15 @@ Rui Costa [2019224237]
 
 import math
 from pprint import pprint
-from typing import Union
+from typing import Union, Tuple
+from unittest import result
 import numpy as np
 from matplotlib import image, pyplot as plt
 
 """
 Semana 1
     Done: 1, 2, 3.1, 3.4
-    To Implement: 3.2, 3.3, 4, 5, ball hehe
+    To Implement: 3.2, 3.3, 4, 5
 
     When converting YCbCr back to RGB, first round, then clamp values to [0, 255], then cast with astype(np.uint8)
     Yes daddy.
@@ -41,7 +42,7 @@ def viewImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     plt.show(block=block)
 
 
-def sepRGB(image: np.ndarray) -> Union[np.ndarray, np.ndarray, np.ndarray]:
+def sepRGB(image: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if image.ndim > 2:
         r = image[:, :, 0]
         g = image[:, :, 1]
@@ -78,24 +79,40 @@ def padding(img: np.ndarray) -> np.ndarray:
     horizontalPadding = width - trueWidth
 
     # use hstack and vstack
-
+    # TODO This is not working, fix this
     if img.ndim == 2:
-        for _ in range(verticalPadding):
-            img = np.vstack((img, img[-1, :]))
-        for _ in range(horizontalPadding):
-            img = np.hstack((img, img[:, -1]))
+        np.vstack((img, img[-1,:].repeat(verticalPadding)))
+        np.hstack((img, img[:, -1].repeat(horizontalPadding)))        
     else:
-        pprint(img[:, -1, 0])
-        for _ in range(verticalPadding):
-            img = np.vstack((img, img[-1, :, :]))
-        for _ in range(horizontalPadding):
-            img = np.hstack((img, img[:, -1, :]))
+        np.vstack((img[:,:,0], img[-1, :, 0].repeat(verticalPadding)))
+        np.hstack((img[:,:,0], img[:, -1, 0].repeat(horizontalPadding)))
 
     return img
     
 
 def unpadding(img: np.ndarray) -> np.ndarray:
     pass
+
+
+YCbCr = np.array([[0.299, 0.587, 0.114],
+                                [-0.168736, -0.331264, 0.5],
+                                [0.5, -0.418688, -0.081312]])
+
+
+def ycbcr(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    Y = YCbCr[0,0] * r + YCbCr[0,1] * g + YCbCr[0,2] * b
+    Cb = YCbCr[1,0] * r + YCbCr[1,1] * g + YCbCr[1,2] * b - 128
+    Cr = YCbCr[2,0] * r + YCbCr[2,1] * g + YCbCr[2,2] * b - 128
+    return Y, Cb, Cr
+
+def rgb(Y: np.ndarray, Cb: np.ndarray, Cr: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    table = np.linalg.inv(YCbCr)
+    Cb = Cb - 128
+    Cr = Cr - 128
+    r = table[0,0] * Y + table[0,1] * Cb + table[0,2] * Cr
+    g = table[1,0] * Y + table[1,1] * Cb + table[1,2] * Cr
+    b = table[2,0] * Y + table[2,1] * Cb + table[2,2] * Cr
+    return r, g, b
 
 
 if __name__ == "__main__":
@@ -124,5 +141,10 @@ if __name__ == "__main__":
     if viewJoined == True:
         viewImage(rgb, title="Joined Channels")
 
-    paddedImg = padding(img)
-    viewImage(paddedImg, title="Padded")
+    # paddedImg = padding(img)
+    # viewImage(paddedImg, title="Padded")
+
+    y, cb, Cr = ycbcr(r,g,b)
+    viewImage(y, block=False, title="Y Channel")
+    viewImage(cb, block=False, title="Cb Channel")
+    viewImage(Cr, title="Cr Channel")
