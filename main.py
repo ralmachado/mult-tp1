@@ -68,24 +68,28 @@ def padding(img: np.ndarray) -> np.ndarray:
     if img.ndim < 2:
         raise Exception("img array is one dimensional")
 
-    trueHeight = img.shape[0]
-    trueWidth = img.shape[1]
+    height = img.shape[0]
+    width = img.shape[1]
 
     # The resulting sizes are even since 16 is even
-    width = math.ceil(trueWidth / 16) * 16
-    height = math.ceil(trueHeight / 16) * 16
-    
-    verticalPadding = height - trueHeight
-    horizontalPadding = width - trueWidth
+    modY = height % 16
+    modX = width % 16
+    verticalPadding = 16 - modY if modY != 0 else 0
+    horizontalPadding = 16 - modX if modX != 0 else 0
 
-    # TODO Missing horizontal padding
     # We assume that all images are RGB
     r,g,b = sepRGB(img)
-    r = np.vstack((r, np.tile(r[-1, :], (verticalPadding, 1))))
-    g = np.vstack((g, np.tile(g[-1, :], (verticalPadding, 1))))
-    b = np.vstack((b, np.tile(b[-1, :], (verticalPadding, 1))))
+
+    if verticalPadding > 0:
+        r = np.vstack((r, np.tile(r[-1, :], (verticalPadding, 1))))
+        g = np.vstack((g, np.tile(g[-1, :], (verticalPadding, 1))))
+        b = np.vstack((b, np.tile(b[-1, :], (verticalPadding, 1))))
+    if horizontalPadding > 0:
+        r = np.hstack((r, np.tile(r[:, -1], (horizontalPadding, 1)).transpose()))
+        g = np.hstack((g, np.tile(g[:, -1], (horizontalPadding, 1)).transpose()))
+        b = np.hstack((b, np.tile(b[:, -1], (horizontalPadding, 1)).transpose()))
     
-    return joinRGB(r,g,b)    
+    return joinRGB(r,g,b)
 
 def unpadding(img: np.ndarray) -> np.ndarray:
     pass
@@ -116,32 +120,38 @@ if __name__ == "__main__":
     viewOriginal = False
     viewChannels = False
     viewJoined = False
+    viewPadded = False
 
     basePath = "imagens"
     peppers = f"{basePath}/peppers.bmp"
     logo = f"{basePath}/logo.bmp"
     barn = f"{basePath}/barn_mountains.bmp"
 
-    file = barn
+    file = peppers
 
     img = image.imread(file)
-    if viewOriginal == True:
+    if viewOriginal:
         viewImage(img, title="Original")
 
     r, g, b = sepRGB(img)
-    if viewChannels == True:
+    if viewChannels:
         viewImage(r, block=False, title="Red Channel", cmap="Reds")
         viewImage(g, block=False, title="Green Channel", cmap="Greens")
         viewImage(b, title="Blue Channel", cmap="Blues")
 
-    rgb = joinRGB(r, g, b)
-    if viewJoined == True:
-        viewImage(rgb, title="Joined Channels")
+    rgbImage = joinRGB(r, g, b)
+    if viewJoined:
+        viewImage(rgbImage, title="Joined Channels")
 
     paddedImg = padding(img)
-    viewImage(paddedImg, title="Padded")
+    if viewPadded:
+        viewImage(paddedImg, title="Padded")
 
-    # y, cb, Cr = ycbcr(r,g,b)
+    y, cb, cr = ycbcr(r,g,b)
+    r,g,b = rgb(y,cb,cr)
+    img = joinRGB(r,g,b)
+    viewImage(img)
     # viewImage(y, block=False, title="Y Channel")
     # viewImage(cb, block=False, title="Cb Channel")
-    # viewImage(Cr, title="Cr Channel")
+    # viewImage(cr, title="Cr Channel")
+
