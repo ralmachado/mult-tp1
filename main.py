@@ -78,17 +78,14 @@ def padding(img: np.ndarray) -> np.ndarray:
     verticalPadding = height - trueHeight
     horizontalPadding = width - trueWidth
 
-    # use hstack and vstack
-    # TODO This is not working, fix this
-    if img.ndim == 2:
-        np.vstack((img, img[-1,:].repeat(verticalPadding)))
-        np.hstack((img, img[:, -1].repeat(horizontalPadding)))        
-    else:
-        np.vstack((img[:,:,0], img[-1, :, 0].repeat(verticalPadding)))
-        np.hstack((img[:,:,0], img[:, -1, 0].repeat(horizontalPadding)))
-
-    return img
+    # TODO Missing horizontal padding
+    # We assume that all images are RGB
+    r,g,b = sepRGB(img)
+    r = np.vstack((r, np.tile(r[-1, :], (verticalPadding, 1))))
+    g = np.vstack((g, np.tile(g[-1, :], (verticalPadding, 1))))
+    b = np.vstack((b, np.tile(b[-1, :], (verticalPadding, 1))))
     
+    return joinRGB(r,g,b)    
 
 def unpadding(img: np.ndarray) -> np.ndarray:
     pass
@@ -141,10 +138,10 @@ if __name__ == "__main__":
     if viewJoined == True:
         viewImage(rgb, title="Joined Channels")
 
-    # paddedImg = padding(img)
-    # viewImage(paddedImg, title="Padded")
+    paddedImg = padding(img)
+    viewImage(paddedImg, title="Padded")
 
-    y, cb, Cr = ycbcr(r,g,b)
-    viewImage(y, block=False, title="Y Channel")
-    viewImage(cb, block=False, title="Cb Channel")
-    viewImage(Cr, title="Cr Channel")
+    # y, cb, Cr = ycbcr(r,g,b)
+    # viewImage(y, block=False, title="Y Channel")
+    # viewImage(cb, block=False, title="Cb Channel")
+    # viewImage(Cr, title="Cr Channel")
