@@ -122,9 +122,9 @@ def rgb(Y: np.ndarray, Cb: np.ndarray, Cr: np.ndarray) -> Tuple[np.ndarray, np.n
     r = table[0, 0] * Y + table[0, 1] * Cb + table[0, 2] * Cr
     g = table[1, 0] * Y + table[1, 1] * Cb + table[1, 2] * Cr
     b = table[2, 0] * Y + table[2, 1] * Cb + table[2, 2] * Cr
-    np.round(r)
-    np.round(g)
-    np.round(b)
+    r = np.round(r)
+    g = np.round(g)
+    b = np.round(b)
     r[r > 255] = 255
     r[g > 255] = 255
     r[b > 255] = 255
@@ -166,10 +166,11 @@ if __name__ == "__main__":
     if viewPadded:
         viewImage(paddedImg, title="Padded")
 
+    r, g, b = sepRGB(paddedImg)
     y, cb, cr = ycbcr(r, g, b)
     r, g, b = rgb(y, cb, cr)
     img = joinRGB(r, g, b)
     viewImage(img)
-    # viewImage(y, block=False, title="Y Channel", cmap="gray")
-    # viewImage(cb, block=False, title="Cb Channel", cmap="gray")
-    # viewImage(cr, title="Cr Channel", cmap="")
+    viewImage(y, block=False, title="Y Channel", cmap="gray")
+    viewImage(cb, block=False, title="Cb Channel", cmap="gray")
+    viewImage(cr, title="Cr Channel", cmap="gray")
