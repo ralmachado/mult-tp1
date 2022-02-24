@@ -5,11 +5,9 @@ Rodrigo Machado [2019218299]
 Rui Costa [2019224237]
 """
 
-import math
-from pprint import pprint
-from typing import Union, Tuple
+from typing import Tuple
 import numpy as np
-from matplotlib import image, pyplot as plt
+from matplotlib import image, colors, pyplot as plt
 
 """
 Semana 1
@@ -21,13 +19,24 @@ Semana 1
 """
 
 
-def enconder():
-    pass
+def encoder(path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
+    img = image.imread(path)
+    shape = img.shape
+    img = padding(img)
+    r, g, b = sepRGB(img)
+    return ycbcr(r, g, b), shape
 
 
-def decoder():
-    pass
+def decoder(ycbcr: tuple, shape: tuple) -> np.ndarray:
+    y, cb, cr = ycbcr
+    img = rgb(y, cb, cr)
+    img = unpadding(img, shape)
+    return img
 
+
+RED = colors.LinearSegmentedColormap.from_list('cmap', [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)], 256)
+GREEN = colors.LinearSegmentedColormap.from_list('cmap', [(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)], 256)
+BLUE = colors.LinearSegmentedColormap.from_list('cmap', [(0.0, 0.0, 0.0), (0.0, 0.0, 1.0)], 256)
 
 def viewImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     # Get keyword arguments
@@ -99,8 +108,8 @@ def padding(img: np.ndarray) -> np.ndarray:
     return joinRGB(r, g, b)
 
 
-def unpadding(img: np.ndarray) -> np.ndarray:
-    pass
+def unpadding(img: np.ndarray, shape: np.shape) -> np.ndarray:
+    return img[:shape[0], :shape[1], :]
 
 
 YCbCr = np.array(
@@ -115,62 +124,72 @@ def ycbcr(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> Tuple[np.ndarray, np.n
     return Y, Cb, Cr
 
 
-def rgb(Y: np.ndarray, Cb: np.ndarray, Cr: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def rgb(Y: np.ndarray, Cb: np.ndarray, Cr: np.ndarray) -> np.ndarray:
     table = np.linalg.inv(YCbCr)
     Cb = Cb - 128
     Cr = Cr - 128
     r = table[0, 0] * Y + table[0, 1] * Cb + table[0, 2] * Cr
     g = table[1, 0] * Y + table[1, 1] * Cb + table[1, 2] * Cr
     b = table[2, 0] * Y + table[2, 1] * Cb + table[2, 2] * Cr
-    r = np.round(r)
-    g = np.round(g)
-    b = np.round(b)
-    r[r > 255] = 255
-    r[g > 255] = 255
-    r[b > 255] = 255
-    r[r < 0] = 0
-    r[g < 0] = 0
-    r[b < 0] = 0
+    img = joinRGB(r,g,b)
+    img = np.round(img)
+    img[img > 255] = 255
+    img[img < 0] = 0
 
-    return r.astype(np.uint8), g.astype(np.uint8), b.astype(np.uint8)
+    return img.astype(np.uint8)
 
 
-if __name__ == "__main__":
-    viewOriginal = False
-    viewChannels = False
-    viewJoined = False
-    viewPadded = False
+def viewYCbCr(y: np.ndarray, cb: np.ndarray, cr: np.ndarray):
+    plt.subplot(131)
+    showImage(y, cmap="gray")
+    plt.subplot(132)
+    showImage(cb, cmap="gray")
+    plt.subplot(133)
+    showImage(cr, cmap="gray")
+    plt.subplots_adjust(left=0.01, right=0.99, wspace=0.01)
+    plt.show()
 
+
+def subsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
+    if ratio == (4,4,4): return
+    cb, cr = chroma
+    cbRatio = ratio[1]/ratio[0]
+    horizontal = False
+    if ratio[2] == 0:
+        crRatio = cbRatio
+        horizontal = True
+    else:
+        crRatio = ratio[2]/ratio[0]
+    
+    cbStep = int(1/cbRatio)
+    crStep = int(1/crRatio)
+    cb = cb[:, ::cbStep]
+    cr = cr[:, ::crStep]
+    if horizontal:
+        cb = cb[::cbStep, :]
+        cr = cr[::crStep, :]
+
+    return (cb, cr)
+    
+
+def upsampler():
+    pass
+
+
+def main():
     basePath = "imagens"
     peppers = f"{basePath}/peppers.bmp"
     logo = f"{basePath}/logo.bmp"
     barn = f"{basePath}/barn_mountains.bmp"
 
     file = barn
+    (y, cb, cr), shape = encoder(file)
+    # cb, cr = subsampler((cb,cr), (4,2,0))
+    # viewYCbCr(y, cb, cr)
+    # print(y.shape, cb.shape)
+    test = decoder((y,cb,cr), shape)
+    viewImage(test)
 
-    img = image.imread(file)
-    if viewOriginal:
-        viewImage(img, title="Original")
 
-    r, g, b = sepRGB(img)
-    if viewChannels:
-        viewImage(r, block=False, title="Red Channel", cmap="Reds")
-        viewImage(g, block=False, title="Green Channel", cmap="Greens")
-        viewImage(b, title="Blue Channel", cmap="Blues")
-
-    rgbImage = joinRGB(r, g, b)
-    if viewJoined:
-        viewImage(rgbImage, title="Joined Channels")
-
-    paddedImg = padding(img)
-    if viewPadded:
-        viewImage(paddedImg, title="Padded")
-
-    r, g, b = sepRGB(paddedImg)
-    y, cb, cr = ycbcr(r, g, b)
-    r, g, b = rgb(y, cb, cr)
-    img = joinRGB(r, g, b)
-    viewImage(img)
-    viewImage(y, block=False, title="Y Channel", cmap="gray")
-    viewImage(cb, block=False, title="Cb Channel", cmap="gray")
-    viewImage(cr, title="Cr Channel", cmap="gray")
+if __name__ == "__main__":
+    main()
