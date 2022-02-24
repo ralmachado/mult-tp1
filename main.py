@@ -8,6 +8,7 @@ Rui Costa [2019224237]
 from typing import Tuple
 import numpy as np
 from matplotlib import image, colors, pyplot as plt
+from scipy import ndimage
 
 """
 Semana 1
@@ -172,8 +173,13 @@ def subsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
     return (cb, cr)
     
 
-def upsampler():
-    pass
+def upsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarray, np.ndarray]:
+    cbZoom = (shape[0] / cb.shape[0], shape[1] / cb.shape[1])
+    crZoom = (shape[0] / cr.shape[0], shape[1] / cr.shape[1])
+    print(cbZoom, crZoom)
+    cb = ndimage.zoom(cb, cbZoom)
+    cr = ndimage.zoom(cr, crZoom)
+    return cb, cr
 
 
 def main():
@@ -183,12 +189,20 @@ def main():
     barn = f"{basePath}/barn_mountains.bmp"
 
     file = barn
+    plt.figure("Original")
+    showImage(image.imread(file))
+    plt.show(block=False)
     (y, cb, cr), shape = encoder(file)
-    # cb, cr = subsampler((cb,cr), (4,2,0))
+    cb, cr = subsampler((cb,cr), (4,1,0))
+    print(y.shape, cb.shape)
     # viewYCbCr(y, cb, cr)
     # print(y.shape, cb.shape)
+    cb, cr = upsampler(cb, cr, y.shape)
+    print(y.shape, cb.shape, cr.shape)
     test = decoder((y,cb,cr), shape)
-    viewImage(test)
+    plt.figure("Compressed")
+    showImage(test)
+    plt.show()
 
 
 if __name__ == "__main__":
