@@ -8,7 +8,9 @@ Rui Costa [2019224237]
 from typing import Tuple
 import numpy as np
 from matplotlib import image, colors, pyplot as plt
-from scipy import ndimage
+from scipy import ndimage, fftpack as fft
+import cv2
+from pprint import pprint
 
 """
 Semana 1
@@ -19,6 +21,7 @@ Semana 1
     Yes daddy.
 """
 
+#----- Packaged Encoder/Decoder -----#
 
 def encoder(path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
     img = image.imread(path)
@@ -34,6 +37,7 @@ def decoder(ycbcr: tuple, shape: tuple) -> np.ndarray:
     img = unpadding(img, shape)
     return img
 
+#----- RGB Colormaps -----#
 
 RED = colors.LinearSegmentedColormap.from_list('cmap', [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)], 256)
 GREEN = colors.LinearSegmentedColormap.from_list('cmap', [(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)], 256)
@@ -59,6 +63,9 @@ def showImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     plt.axis("off")
     plt.imshow(image, cmap=cmap)
 
+
+#----- RGB Channel splitting and joining -----#
+
 def sepRGB(image: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if image.ndim > 2:
         r = image[:, :, 0]
@@ -80,6 +87,8 @@ def joinRGB(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> np.ndarray:
     rgb[:, :, 2] = b
     return rgb
 
+
+#----- Padding/Unpadding -----#
 
 def padding(img: np.ndarray) -> np.ndarray:
     if img.ndim < 2:
@@ -112,6 +121,8 @@ def padding(img: np.ndarray) -> np.ndarray:
 def unpadding(img: np.ndarray, shape: np.shape) -> np.ndarray:
     return img[:shape[0], :shape[1], :]
 
+
+#----- Colorspace conversions -----#
 
 YCbCr = np.array(
     [[0.299, 0.587, 0.114], [-0.168736, -0.331264, 0.5], [0.5, -0.418688, -0.081312]]
@@ -148,8 +159,10 @@ def viewYCbCr(y: np.ndarray, cb: np.ndarray, cr: np.ndarray):
     plt.subplot(133)
     showImage(cr, cmap="gray")
     plt.subplots_adjust(left=0.01, right=0.99, wspace=0.01)
-    plt.show()
+    # plt.show()
 
+
+#----- Chroma resampling -----#
 
 def subsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
     if ratio == (4,4,4): return
@@ -182,6 +195,25 @@ def upsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarray,
     return cb, cr
 
 
+#----- Discrete Cosine Transform -----#
+
+def dct(X: np.ndarray) -> np.ndarray:
+    return fft.dct(fft.dct(X, norm="ortho").T, norm="ortho").T
+
+
+def idct(X: np.ndarray) -> np.ndarray:
+    return fft.idct(fft.idct(X, norm="ortho").T, norm="ortho").T
+    
+
+def viewDct(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray) -> None:
+    x1log = np.log(np.abs(x1) + 0.0001)
+    x2log = np.log(np.abs(x2) + 0.0001)
+    x3log = np.log(np.abs(x3) + 0.0001)
+    viewYCbCr(x1log, x2log, x3log)
+
+
+#----- Main -----#
+
 def main():
     basePath = "imagens"
     peppers = f"{basePath}/peppers.bmp"
@@ -189,19 +221,29 @@ def main():
     barn = f"{basePath}/barn_mountains.bmp"
 
     file = barn
-    plt.figure("Original")
-    showImage(image.imread(file))
-    plt.show(block=False)
-    (y, cb, cr), shape = encoder(file)
-    cb, cr = subsampler((cb,cr), (4,1,0))
-    print(y.shape, cb.shape)
-    # viewYCbCr(y, cb, cr)
-    # print(y.shape, cb.shape)
-    cb, cr = upsampler(cb, cr, y.shape)
-    print(y.shape, cb.shape, cr.shape)
-    test = decoder((y,cb,cr), shape)
-    plt.figure("Compressed")
-    showImage(test)
+
+    plt.figure("YCbCr")
+    (Y, Cb, Cr), shape = encoder(file)
+    Cb, Cr = subsampler((Cb,Cr), (4,1,0))
+    viewYCbCr(Y, Cb, Cr)
+
+    plt.figure("DCT")
+    Y_dct = dct(Y)
+    Cb_dct = dct(Cb)
+    Cr_dct = dct(Cr)
+    viewDct(Y_dct, Cb_dct, Cr_dct)
+
+    plt.figure("IDCT")
+    Y_inv = idct(Y_dct)
+    Cb_inv = idct(Cb_dct)
+    Cr_inv = idct(Cr_dct)
+    viewYCbCr(Y_inv, Cb_inv, Cr_inv)
+
+    # cb, cr = upsampler(cb, cr, y.shape)
+    # print(y.shape, cb.shape, cr.shape)
+    # test = decoder((y,cb,cr), shape)
+    # plt.figure("Compressed")
+    # showImage(test)
     plt.show()
 
 
