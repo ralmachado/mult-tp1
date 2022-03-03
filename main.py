@@ -26,9 +26,9 @@ def encoder(path: str, sampling: tuple) -> Tuple[np.ndarray, np.ndarray, np.ndar
     return y, cb, cr, shape
 
 
-def decoder(ycbcr: tuple, shape: tuple) -> np.ndarray:
+def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple) -> np.ndarray:
     y, cb, cr = ycbcr
-    cb, cr = upsampler(cb, cr, shape)
+    cb, cr = upsampler(cb, cr, y.shape)
     img = rgb(y, cb, cr)
     img = unpadding(img, shape)
     return img
@@ -235,11 +235,9 @@ def main():
     Cr_inv = idct(Cr_dct)
     viewYCbCr(Y_inv, Cb_inv, Cr_inv)
 
-    # cb, cr = upsampler(cb, cr, y.shape)
-    # print(y.shape, cb.shape, cr.shape)
-    # test = decoder((y,cb,cr), shape)
-    # plt.figure("Compressed")
-    # showImage(test)
+    decoded = decoder((Y_inv,Cb_inv,Cr_inv), shape)
+    plt.figure("Compressed")
+    showImage(decoded)
     plt.show()
 
 
