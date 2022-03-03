@@ -21,7 +21,8 @@ def encoder(path: str, sampling: tuple) -> Tuple[np.ndarray, np.ndarray, np.ndar
     img = padding(img)
     r, g, b = sepRGB(img)
     y, cb, cr = ycbcr(r, g ,b)
-    cb, cr = subsampler((cb, cr), sampling)
+    if sampling != (4,4,4):
+        cb, cr = subsampler((cb, cr), sampling)
     return y, cb, cr, shape
 
 
@@ -218,7 +219,7 @@ def main():
     file = barn
 
     plt.figure("YCbCr")
-    (Y, Cb, Cr), shape = encoder(file)
+    Y, Cb, Cr, shape = encoder(file, (4, 4, 4))
     Cb, Cr = subsampler((Cb,Cr), (4,1,0))
     viewYCbCr(Y, Cb, Cr)
 
