@@ -12,27 +12,22 @@ from scipy import ndimage, fftpack as fft
 import cv2
 from pprint import pprint
 
-"""
-Semana 1
-    Done: 1, 2, 3.1, 3.4
-    To Implement: 3.2, 3.3, 4, 5
-
-    When converting YCbCr back to RGB, first round, then clamp values to [0, 255], then cast with astype(np.uint8)
-    Yes daddy.
-"""
 
 #----- Packaged Encoder/Decoder -----#
 
-def encoder(path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
+def encoder(path: str, sampling: tuple) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
     img = image.imread(path)
     shape = img.shape
     img = padding(img)
     r, g, b = sepRGB(img)
-    return ycbcr(r, g, b), shape
+    y, cb, cr = ycbcr(r, g ,b)
+    cb, cr = subsampler((cb, cr), sampling)
+    return y, cb, cr, shape
 
 
 def decoder(ycbcr: tuple, shape: tuple) -> np.ndarray:
     y, cb, cr = ycbcr
+    cb, cr = upsampler(cb, cr, shape)
     img = rgb(y, cb, cr)
     img = unpadding(img, shape)
     return img
