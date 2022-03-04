@@ -6,6 +6,7 @@ Rui Costa [2019224237]
 """
 
 from typing import Tuple
+from cv2 import INTER_AREA, INTER_CUBIC
 import numpy as np
 from matplotlib import image, colors, pyplot as plt
 from scipy import ndimage, fftpack as fft
@@ -13,31 +14,40 @@ import cv2
 from pprint import pprint
 
 
-#----- Packaged Encoder/Decoder -----#
+# ----- Packaged Encoder/Decoder -----#
+
 
 def encoder(path: str, sampling: tuple) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
     img = image.imread(path)
     shape = img.shape
-    img = padding(img)
     r, g, b = sepRGB(img)
-    y, cb, cr = ycbcr(r, g ,b)
-    if sampling != (4,4,4):
-        cb, cr = subsampler((cb, cr), sampling)
+    r, g, b = padding(r, g, b)
+    y, cb, cr = ycbcr(r, g, b)
+    if sampling != (4, 4, 4):
+        cb, cr = cvSubsampler((cb, cr), sampling)
     return y, cb, cr, shape
 
 
 def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple) -> np.ndarray:
     y, cb, cr = ycbcr
-    cb, cr = upsampler(cb, cr, y.shape)
+    cb, cr = cvUpsampler(cb, cr, y.shape)
     img = rgb(y, cb, cr)
     img = unpadding(img, shape)
     return img
 
-#----- RGB Colormaps -----#
 
-RED = colors.LinearSegmentedColormap.from_list('cmap', [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)], 256)
-GREEN = colors.LinearSegmentedColormap.from_list('cmap', [(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)], 256)
-BLUE = colors.LinearSegmentedColormap.from_list('cmap', [(0.0, 0.0, 0.0), (0.0, 0.0, 1.0)], 256)
+# ----- RGB Colormaps -----#
+
+RED = colors.LinearSegmentedColormap.from_list(
+    "cmap", [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)], 256
+)
+GREEN = colors.LinearSegmentedColormap.from_list(
+    "cmap", [(0.0, 0.0, 0.0), (0.0, 1.0, 0.0)], 256
+)
+BLUE = colors.LinearSegmentedColormap.from_list(
+    "cmap", [(0.0, 0.0, 0.0), (0.0, 0.0, 1.0)], 256
+)
+
 
 def viewImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     # Get keyword arguments
@@ -60,7 +70,8 @@ def showImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     plt.imshow(image, cmap=cmap)
 
 
-#----- RGB Channel splitting and joining -----#
+# ----- RGB Channel splitting and joining -----#
+
 
 def sepRGB(image: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if image.ndim > 2:
@@ -69,7 +80,7 @@ def sepRGB(image: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         b = image[:, :, 2]
         return r, g, b
     else:
-        raise Exception("image.ndim not bigger than 2")
+        raise Exception("Image has a single channel")
 
 
 def joinRGB(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -84,23 +95,19 @@ def joinRGB(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> np.ndarray:
     return rgb
 
 
-#----- Padding/Unpadding -----#
+# ----- Padding/Unpadding -----#
 
-def padding(img: np.ndarray) -> np.ndarray:
-    if img.ndim < 2:
-        raise Exception("img array is one dimensional")
 
-    height = img.shape[0]
-    width = img.shape[1]
+def padding(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if r.shape != g.shape or g.shape != b.shape or r.shape != b.shape:
+        raise Exception("Shape mismatch")
+    
+    height, width = r.shape
 
-    # The resulting sizes are even since 16 is even
     modY = height % 16
     modX = width % 16
     verticalPadding = 16 - modY if modY != 0 else 0
     horizontalPadding = 16 - modX if modX != 0 else 0
-
-    # We assume that all images are RGB
-    r, g, b = sepRGB(img)
 
     if verticalPadding > 0:
         r = np.vstack((r, np.tile(r[-1, :], (verticalPadding, 1))))
@@ -111,14 +118,14 @@ def padding(img: np.ndarray) -> np.ndarray:
         g = np.hstack((g, np.tile(g[:, -1], (horizontalPadding, 1)).transpose()))
         b = np.hstack((b, np.tile(b[:, -1], (horizontalPadding, 1)).transpose()))
 
-    return joinRGB(r, g, b)
+    return r, g, b
 
 
 def unpadding(img: np.ndarray, shape: np.shape) -> np.ndarray:
-    return img[:shape[0], :shape[1], :]
+    return img[: shape[0], : shape[1], :]
 
 
-#----- Colorspace conversions -----#
+# ----- Colorspace conversions -----#
 
 YCbCr = np.array(
     [[0.299, 0.587, 0.114], [-0.168736, -0.331264, 0.5], [0.5, -0.418688, -0.081312]]
@@ -139,7 +146,7 @@ def rgb(Y: np.ndarray, Cb: np.ndarray, Cr: np.ndarray) -> np.ndarray:
     r = table[0, 0] * Y + table[0, 1] * Cb + table[0, 2] * Cr
     g = table[1, 0] * Y + table[1, 1] * Cb + table[1, 2] * Cr
     b = table[2, 0] * Y + table[2, 1] * Cb + table[2, 2] * Cr
-    img = joinRGB(r,g,b)
+    img = joinRGB(r, g, b)
     img = np.round(img)
     img[img > 255] = 255
     img[img < 0] = 0
@@ -158,21 +165,65 @@ def viewYCbCr(y: np.ndarray, cb: np.ndarray, cr: np.ndarray):
     # plt.show()
 
 
-#----- Chroma resampling -----#
+#----- Chroma Resampling -----#
 
-def subsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
-    if ratio == (4,4,4): return
+
+def cvSubsampler(chroma: Tuple[np.ndarray, np.ndarray], ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
+    """Chroma downsampling using cv2."""
+
+    if ratio == (4, 4, 4):
+        return cb, cr
     cb, cr = chroma
-    cbRatio = ratio[1]/ratio[0]
     horizontal = False
+    cbRatio = ratio[1] / ratio[0]
     if ratio[2] == 0:
         crRatio = cbRatio
         horizontal = True
     else:
-        crRatio = ratio[2]/ratio[0]
+        crRatio = ratio[2] / ratio[0]
+
+    if horizontal:
+        cb = cv2.resize(cb, fx=cbRatio, fy=cbRatio, interpolation=INTER_AREA)
+        cr = cv2.resize(cr, fx=crRatio, fy=crRatio, interpolation=INTER_AREA)
+    else:
+        cb = cv2.resize(cb, fy=cbRatio, interpolation=INTER_AREA)
+        cr = cv2.resize(cr, fy=crRatio, interpolation=INTER_AREA)
+
+    return cb, cr
+
+
+def cvUpsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarray, np.ndarray]:
+    """Chroma upsampling using cv2."""
     
-    cbStep = int(1/cbRatio)
-    crStep = int(1/crRatio)
+    size = shape[::-1]
+    
+    cb = cv2.resize(cb, size, interpolation=INTER_CUBIC)
+    cr = cv2.resize(cr, size, interpolation=INTER_CUBIC)
+
+    return cb, cr
+
+
+# ----- Deprecated chroma resampling -----#
+
+
+def subsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Deprecated.
+    
+    Old chroma subsampling function. Kept for historical reasons.
+    """
+
+    if ratio == (4, 4, 4):
+        return
+    cb, cr = chroma
+    cbStep = int(ratio[0] / ratio[1])
+    horizontal = False
+    if ratio[2] == 0:
+        crStep = cbStep
+        horizontal = True
+    else:
+        crStep = int(ratio[0] / ratio[2])
+
     cb = cb[:, ::cbStep]
     cr = cr[:, ::crStep]
     if horizontal:
@@ -180,18 +231,24 @@ def subsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
         cr = cr[::crStep, :]
 
     return (cb, cr)
-    
+
 
 def upsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Deprecated.
+
+    Old chroma upsampling function using scipy. Kept for historical reasons.
+    """
+
     cbZoom = (shape[0] / cb.shape[0], shape[1] / cb.shape[1])
     crZoom = (shape[0] / cr.shape[0], shape[1] / cr.shape[1])
-    print(cbZoom, crZoom)
     cb = ndimage.zoom(cb, cbZoom)
     cr = ndimage.zoom(cr, crZoom)
     return cb, cr
 
 
-#----- Discrete Cosine Transform -----#
+# ----- Discrete Cosine Transform -----#
+
 
 def dct(X: np.ndarray) -> np.ndarray:
     return fft.dct(fft.dct(X, norm="ortho").T, norm="ortho").T
@@ -199,7 +256,7 @@ def dct(X: np.ndarray) -> np.ndarray:
 
 def idct(X: np.ndarray) -> np.ndarray:
     return fft.idct(fft.idct(X, norm="ortho").T, norm="ortho").T
-    
+
 
 def viewDct(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray) -> None:
     x1log = np.log(np.abs(x1) + 0.0001)
@@ -208,7 +265,8 @@ def viewDct(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray) -> None:
     viewYCbCr(x1log, x2log, x3log)
 
 
-#----- Main -----#
+# ----- Main -----#
+
 
 def main():
     basePath = "imagens"
@@ -220,7 +278,7 @@ def main():
 
     plt.figure("YCbCr")
     Y, Cb, Cr, shape = encoder(file, (4, 4, 4))
-    Cb, Cr = subsampler((Cb,Cr), (4,1,0))
+    Cb, Cr = subsampler((Cb, Cr), (4, 1, 0))
     viewYCbCr(Y, Cb, Cr)
 
     plt.figure("DCT")
@@ -235,7 +293,7 @@ def main():
     Cr_inv = idct(Cr_dct)
     viewYCbCr(Y_inv, Cb_inv, Cr_inv)
 
-    decoded = decoder((Y_inv,Cb_inv,Cr_inv), shape)
+    decoded = decoder((Y_inv, Cb_inv, Cr_inv), shape)
     plt.figure("Compressed")
     showImage(decoded)
     plt.show()
