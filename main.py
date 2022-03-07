@@ -6,13 +6,11 @@ Rui Costa [2019224237]
 """
 
 from typing import Tuple
-from cv2 import INTER_AREA, INTER_CUBIC
 import numpy as np
 from matplotlib import image, colors, pyplot as plt
 from scipy import ndimage, fftpack as fft
 import cv2
-from pprint import pprint
-
+from PIL import Image
 
 # ----- Packaged Encoder/Decoder -----#
 
@@ -49,7 +47,7 @@ BLUE = colors.LinearSegmentedColormap.from_list(
 )
 
 
-def viewImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
+def showImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     # Get keyword arguments
     title = kwargs.get("title", None)
     block = kwargs.get("block", True)
@@ -61,13 +59,32 @@ def viewImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     plt.show(block=block)
 
 
-def showImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
+def viewImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     # Get keyword arguments
     cmap = kwargs.get("cmap", None)
 
     # Create a new figure to display the image
     plt.axis("off")
     plt.imshow(image, cmap=cmap)
+
+
+def viewYCbCr(y: np.ndarray, cb: np.ndarray, cr: np.ndarray) -> None:
+    plt.subplots_adjust(left=0.01, right=0.99, wspace=0.01)
+    plt.subplot(1, 3, 1)
+    viewImage(y, cmap="gray")
+    plt.subplot(1, 3, 2)
+    viewImage(cb, cmap="gray")
+    plt.subplot(1, 3, 3)
+    viewImage(cr, cmap="gray")
+
+def viewRGB(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> None:
+    plt.subplots_adjust(left=0.01, right=0.99, wspace=0.01)
+    plt.subplot(1, 3, 1)
+    viewImage(r, cmap=RED)
+    plt.subplot(1, 3, 2)
+    viewImage(g, cmap=GREEN)
+    plt.subplot(1, 3, 3)
+    viewImage(b, cmap=BLUE)
 
 
 # ----- RGB Channel splitting and joining -----#
@@ -101,7 +118,7 @@ def joinRGB(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> np.ndarray:
 def padding(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if r.shape != g.shape or g.shape != b.shape or r.shape != b.shape:
         raise Exception("Shape mismatch")
-    
+
     height, width = r.shape
 
     modY = height % 16
@@ -154,17 +171,6 @@ def rgb(Y: np.ndarray, Cb: np.ndarray, Cr: np.ndarray) -> np.ndarray:
     return img.astype(np.uint8)
 
 
-def viewYCbCr(y: np.ndarray, cb: np.ndarray, cr: np.ndarray):
-    plt.subplot(131)
-    showImage(y, cmap="gray")
-    plt.subplot(132)
-    showImage(cb, cmap="gray")
-    plt.subplot(133)
-    showImage(cr, cmap="gray")
-    plt.subplots_adjust(left=0.01, right=0.99, wspace=0.01)
-    # plt.show()
-
-
 #----- Chroma Resampling -----#
 
 
@@ -183,22 +189,22 @@ def cvSubsampler(chroma: Tuple[np.ndarray, np.ndarray], ratio: tuple) -> Tuple[n
         crRatio = ratio[2] / ratio[0]
 
     if horizontal:
-        cb = cv2.resize(cb, fx=cbRatio, fy=cbRatio, interpolation=INTER_AREA)
-        cr = cv2.resize(cr, fx=crRatio, fy=crRatio, interpolation=INTER_AREA)
+        cb = cv2.resize(cb, dsize=None, fx=cbRatio, fy=cbRatio, interpolation=cv2.INTER_AREA)
+        cr = cv2.resize(cr, dsize=None, fx=crRatio, fy=crRatio, interpolation=cv2.INTER_AREA)
     else:
-        cb = cv2.resize(cb, fy=cbRatio, interpolation=INTER_AREA)
-        cr = cv2.resize(cr, fy=crRatio, interpolation=INTER_AREA)
+        cb = cv2.resize(cb, dsize=None, fy=cbRatio, interpolation=cv2.INTER_AREA)
+        cr = cv2.resize(cr, dsize=None, fy=crRatio, interpolation=cv2.INTER_AREA)
 
     return cb, cr
 
 
 def cvUpsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarray, np.ndarray]:
     """Chroma upsampling using cv2."""
-    
+
     size = shape[::-1]
-    
-    cb = cv2.resize(cb, size, interpolation=INTER_CUBIC)
-    cr = cv2.resize(cr, size, interpolation=INTER_CUBIC)
+
+    cb = cv2.resize(cb, size, interpolation=cv2.INTER_CUBIC)
+    cr = cv2.resize(cr, size, interpolation=cv2.INTER_CUBIC)
 
     return cb, cr
 
@@ -209,7 +215,7 @@ def cvUpsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarra
 def subsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
     """
     Deprecated.
-    
+
     Old chroma subsampling function. Kept for historical reasons.
     """
 
@@ -268,7 +274,7 @@ def viewDct(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray) -> None:
 # ----- Main -----#
 
 
-def main():
+def oldmain():
     basePath = "imagens"
     peppers = f"{basePath}/peppers.bmp"
     logo = f"{basePath}/logo.bmp"
@@ -295,7 +301,75 @@ def main():
 
     decoded = decoder((Y_inv, Cb_inv, Cr_inv), shape)
     plt.figure("Compressed")
-    showImage(decoded)
+    viewImage(decoded)
+    plt.show()
+
+
+def main():
+    basePath = "imagens"
+    peppers = f"{basePath}/peppers.bmp"
+    logo = f"{basePath}/logo.bmp"
+    barn = f"{basePath}/barn_mountains.bmp"
+
+    file = barn
+    pillow = Image.open(file)
+    img = np.array(pillow)
+    originalShape = img.shape
+
+    plt.figure("Original Image")
+    viewImage(img)
+
+    # Separate RGB channels
+    r, g, b = sepRGB(img)
+    plt.figure("RGB Channels")
+    viewRGB(r, g, b)
+
+    # Add padding to make image sides multiples of 16
+    r, g, b = padding(r, g, b)
+    plt.figure("Padding")
+    viewRGB(r, g, b)
+
+    # RGB to YCbCr colorspace conversion
+    y, cb, cr = ycbcr(r, g, b)
+    plt.figure("RGB to YCbCr")
+    viewYCbCr(y, cb, cr)
+
+    # Chroma subsampling
+    plt.figure("Chroma Subsampling")
+    ratio = (4, 2, 0)
+    cb, cr = cvSubsampler((cb,cr), ratio)
+    viewYCbCr(y, cb, cr)
+
+    # Whole-image DCT
+    plt.figure("Whole-image DCT")
+    y = dct(y)
+    cb = dct(cb)
+    cr = dct(cr)
+    viewDct(y, cb, cr)
+
+    # Whole-image inverse DCT
+    plt.figure("Whole-image Inverse DCT")
+    y = idct(y)
+    cb = idct(cb)
+    cr = idct(cr)
+    viewYCbCr(y, cb, cr)
+
+    # Chroma upsampling
+    plt.figure("Upsampling")
+    cb, cr = cvUpsampler(cb, cr, y.shape)
+    viewYCbCr(y, cb, cr)
+
+    # YCbCr to RGB colorspace conversion
+    plt.figure("YCbCr to RGB")
+    img = rgb(y, cb, cr)
+    r, g, b = sepRGB(img) # Separation is only done here for YCbCr to RGB conversion
+    viewRGB(r, g, b)
+
+    # Remove padding
+    plt.figure("Reconstructed Image")
+    img = unpadding(img, originalShape)
+    viewImage(img)
+
     plt.show()
 
 
