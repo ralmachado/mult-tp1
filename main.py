@@ -271,6 +271,24 @@ def viewDct(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray) -> None:
     viewYCbCr(x1log, x2log, x3log)
 
 
+def blockDct(x: np.ndarray, size: int = 8) -> np.ndarray:
+    h, w = x.shape
+    newImg = np.zeros(x.shape)
+    for i in range(0, h, size):
+        for j in range(0, w, size):
+            newImg[i:i+size, j:j+size] = dct(x[i:i+size, j:j+size])
+    return newImg
+
+
+def blockIdct(x: np.ndarray, size: int = 8) -> np.ndarray:
+    h, w = x.shape
+    newImg = np.zeros(x.shape)
+    for i in range(0, h, size):
+        for j in range(0, w, size):
+            newImg[i:i+size, j:j+size] = idct(x[i:i+size, j:j+size])
+    return newImg
+
+
 # ----- Main -----#
 
 
@@ -341,17 +359,32 @@ def main():
     viewYCbCr(y, cb, cr)
 
     # Whole-image DCT
-    plt.figure("Whole-image DCT")
-    y = dct(y)
-    cb = dct(cb)
-    cr = dct(cr)
+    # plt.figure("Whole-image DCT")
+    # y = dct(y)
+    # cb = dct(cb)
+    # cr = dct(cr)
+    # viewDct(y, cb, cr)
+
+    # Whole-image inverse DCT
+    # plt.figure("Whole-image Inverse DCT")
+    # y = idct(y)
+    # cb = idct(cb)
+    # cr = idct(cr)
+    # viewYCbCr(y, cb, cr)
+
+    # Block DCT
+    block = 8
+    plt.figure("Block DCT")
+    y = blockDct(y, size=block)
+    cb = blockDct(cb, size=block)
+    cr = blockDct(cr, size=block)
     viewDct(y, cb, cr)
 
     # Whole-image inverse DCT
-    plt.figure("Whole-image Inverse DCT")
-    y = idct(y)
-    cb = idct(cb)
-    cr = idct(cr)
+    plt.figure("Block Inverse DCT")
+    y = blockIdct(y, size=block)
+    cb = blockIdct(cb, size=block)
+    cr = blockIdct(cr, size=block)
     viewYCbCr(y, cb, cr)
 
     # Chroma upsampling
