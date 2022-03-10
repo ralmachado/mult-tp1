@@ -273,7 +273,7 @@ def viewDct(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray) -> None:
 
 def blockDct(x: np.ndarray, size: int = 8) -> np.ndarray:
     h, w = x.shape
-    newImg = np.zeros(x.shape)
+    newImg = np.empty(x.shape)
     for i in range(0, h, size):
         for j in range(0, w, size):
             newImg[i:i+size, j:j+size] = dct(x[i:i+size, j:j+size])
@@ -282,14 +282,95 @@ def blockDct(x: np.ndarray, size: int = 8) -> np.ndarray:
 
 def blockIdct(x: np.ndarray, size: int = 8) -> np.ndarray:
     h, w = x.shape
-    newImg = np.zeros(x.shape)
+    newImg = np.empty(x.shape)
     for i in range(0, h, size):
         for j in range(0, w, size):
             newImg[i:i+size, j:j+size] = idct(x[i:i+size, j:j+size])
     return newImg
 
 
-# ----- Main -----#
+# ----- Quantization ----- #
+
+QY = np.array([
+    [16, 11, 10, 16, 24, 40, 51, 61],
+    [12, 12, 14, 19, 26, 58, 60, 55],
+    [14, 13, 16, 24, 40, 57, 69, 56],
+    [14, 17, 22, 29, 51, 87, 80, 62],
+    [18, 22, 37, 56, 68, 109, 103, 77],
+    [24, 35, 55, 64, 81, 104, 113, 92],
+    [49, 64, 78, 87, 103, 121, 120, 101],
+    [72, 92, 95, 98, 112, 100, 103, 99]])
+
+QC = np.array([
+    [17, 18, 24, 47, 99, 99, 99, 99],
+    [18, 21, 26, 66, 99, 99, 99, 99],
+    [24, 26, 56, 99, 99, 99, 99, 99],
+    [47, 66, 99, 99, 99, 99, 99, 99],
+    [99, 99, 99, 99, 99, 99, 99, 99],
+    [99, 99, 99, 99, 99, 99, 99, 99],
+    [99, 99, 99, 99, 99, 99, 99, 99],
+    [99, 99, 99, 99, 99, 99, 99, 99]])
+
+
+def quantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    y, cb, cr = ycbcr
+    sf = (100 - qf) / 50 if qf >= 50 else 50 / qf
+    QsY = np.round(QY * sf)
+    QsC = np.round(QC * sf)
+
+    QsY[QsY > 255] = 255
+    QsC[QsC > 255] = 255
+
+    qy = np.empty(y.shape)
+    qcb = np.empty(cb.shape)
+    qcr = np.empty(cr.shape)
+
+    for i in range(0, y.shape[0], 8):
+        for j in range(0, y.shape[1], 8):
+            qy[i:i+8, j:j+8] = y[i:i+8, j:j+8] / QsY
+    np.round(qy)
+
+    for i in range(0, cb.shape[0], 8):
+        for j in range(0, cb.shape[1], 8):
+            qcb[i:i+8, j:j+8] = cb[i:i+8, j:j+8] / QsC
+    np.round(qcb)
+
+    for i in range(0, cr.shape[0], 8):
+        for j in range(0, cr.shape[1], 8):
+            qcr[i:i+8, j:j+8] = cr[i:i+8, j:j+8] / QsC
+    np.round(qcr)
+
+    return qy.astype(np.uint8), qcb.astype(np.uint8), qcr.astype(np.uint8)
+
+def iQuantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    qy, qcb, qcr = ycbcr
+    sf = (100 - qf) / 50 if qf >= 50 else 50 / qf
+    QsY = np.round(QY * sf)
+    QsC = np.round(QC * sf)
+
+    QsY[QsY > 255] = 255
+    QsC[QsC > 255] = 255
+
+    y = np.empty(y.shape)
+    cb = np.empty(cb.shape)
+    cr = np.empty(cr.shape)
+
+    for i in range(0, y.shape[0], 8):
+        for j in range(0, y.shape[1], 8):
+            y[i:i+8, j:j+8] = qy[i:i+8, j:j+8] * QsY
+
+    for i in range(0, cb.shape[0], 8):
+        for j in range(0, cb.shape[1], 8):
+            cb[i:i+8, j:j+8] = qcb[i:i+8, j:j+8] * QsC
+
+    for i in range(0, cr.shape[0], 8):
+        for j in range(0, cr.shape[1], 8):
+            cr[i:i+8, j:j+8] = qcr[i:i+8, j:j+8] * QsC
+
+    return y, cb, cr
+
+
+# ----- Main ----- #
 
 
 def oldmain():
