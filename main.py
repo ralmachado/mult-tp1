@@ -131,9 +131,9 @@ def padding(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> Tuple[np.ndarray, np
         g = np.vstack((g, np.tile(g[-1, :], (verticalPadding, 1))))
         b = np.vstack((b, np.tile(b[-1, :], (verticalPadding, 1))))
     if horizontalPadding > 0:
-        r = np.hstack((r, np.tile(r[:, -1], (horizontalPadding, 1)).transpose()))
-        g = np.hstack((g, np.tile(g[:, -1], (horizontalPadding, 1)).transpose()))
-        b = np.hstack((b, np.tile(b[:, -1], (horizontalPadding, 1)).transpose()))
+        r = np.hstack((r, np.tile(r[:, -1], (horizontalPadding, 1)).T))
+        g = np.hstack((g, np.tile(g[:, -1], (horizontalPadding, 1)).T))
+        b = np.hstack((b, np.tile(b[:, -1], (horizontalPadding, 1)).T))
 
     return r, g, b
 
@@ -271,6 +271,7 @@ def viewDct(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray) -> None:
     viewYCbCr(x1log, x2log, x3log)
 
 
+
 def blockDct(x: np.ndarray, size: int = 8) -> np.ndarray:
     h, w = x.shape
     newImg = np.empty(x.shape)
@@ -369,6 +370,33 @@ def iQuantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) ->
 
     return y, cb, cr
 
+#-----DCPM-----#
+
+def DCPM(x: np.ndarray) -> np.ndarray:
+    dc0 = x[0,0]
+    r,c = x.shape
+    for i in range(0, r, 8):
+        for j in range(0, c, 8):
+            if i == 0 and j == 0:
+                continue
+            dc = x[i,j]
+            diff = dc - dc0
+            dc0 = dc
+            x[i,j] = diff
+    return x
+
+def iDCPM(x:np.ndarray) -> np.ndarray:
+    r,c =  x.shape
+    dc0 = x[0, 0]
+    for i in range(0, r, 8):
+        for j in range(0, c, 8):
+            if i == 0 and j == 0:
+                continue
+            dc = x[i,j]
+            summ = dc + dc0
+            dc0 = summ
+            x[i,j] = summ
+    return x
 
 # ----- Main ----- #
 
@@ -410,7 +438,7 @@ def main():
     logo = f"{basePath}/logo.bmp"
     barn = f"{basePath}/barn_mountains.bmp"
 
-    file = barn
+    file = logo
     pillow = Image.open(file)
     img = np.array(pillow)
     originalShape = img.shape
