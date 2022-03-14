@@ -5,13 +5,13 @@ Rodrigo Machado [2019218299]
 Rui Costa [2019224237]
 """
 
-from typing import Tuple
-import numpy as np
-from matplotlib import image, colors, pyplot as plt
-from scipy import ndimage, fftpack as fft
 import cv2
+from matplotlib import image, colors, pyplot as plt
+import numpy as np
 from PIL import Image
-from pprint import pprint
+from scipy import ndimage, fftpack as fft
+from typing import Tuple
+
 
 # ----- Packaged Encoder/Decoder -----#
 
@@ -51,6 +51,7 @@ def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: 
 
 
 # ----- RGB Colormaps -----#
+
 
 RED = colors.LinearSegmentedColormap.from_list(
     "cmap", [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0)], 256
@@ -159,6 +160,7 @@ def unpadding(img: np.ndarray, shape: np.shape) -> np.ndarray:
 
 
 # ----- Colorspace conversions -----#
+
 
 YCbCr = np.array(
     [[0.299, 0.587, 0.114], [-0.168736, -0.331264, 0.5], [0.5, -0.418688, -0.081312]]
@@ -287,7 +289,6 @@ def viewDct(x1: np.ndarray, x2: np.ndarray, x3: np.ndarray) -> None:
     viewYCbCr(x1log, x2log, x3log)
 
 
-
 def blockDct(x: np.ndarray, size: int = 8) -> np.ndarray:
     h, w = x.shape
     newImg = np.empty(x.shape)
@@ -308,6 +309,7 @@ def blockIdct(x: np.ndarray, size: int = 8) -> np.ndarray:
 
 # ----- Quantization ----- #
 
+
 QY = np.array([
     [16, 11, 10, 16, 24, 40, 51, 61],
     [12, 12, 14, 19, 26, 58, 60, 55],
@@ -317,6 +319,7 @@ QY = np.array([
     [24, 35, 55, 64, 81, 104, 113, 92],
     [49, 64, 78, 87, 103, 121, 120, 101],
     [72, 92, 95, 98, 112, 100, 103, 99]])
+
 
 QC = np.array([
     [17, 18, 24, 47, 99, 99, 99, 99],
@@ -359,6 +362,7 @@ def quantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) -> 
 
     return qy, qcb, qcr
 
+
 def iQuantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     qy, qcb, qcr = ycbcr
     sf = (100 - qf) / 50 if qf >= 50 else 50 / qf
@@ -386,7 +390,9 @@ def iQuantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) ->
 
     return y, cb, cr
 
+
 #-----DCPM-----#
+
 
 def DCPM(x: np.ndarray) -> np.ndarray:
     dc0 = x[0,0]
@@ -400,6 +406,7 @@ def DCPM(x: np.ndarray) -> np.ndarray:
             dc0 = dc
             x[i,j] = diff
     return x
+
 
 def iDCPM(x:np.ndarray) -> np.ndarray:
     r,c =  x.shape
@@ -415,37 +422,6 @@ def iDCPM(x:np.ndarray) -> np.ndarray:
     return x
 
 # ----- Main ----- #
-
-
-def oldmain():
-    basePath = "imagens"
-    peppers = f"{basePath}/peppers.bmp"
-    logo = f"{basePath}/logo.bmp"
-    barn = f"{basePath}/barn_mountains.bmp"
-
-    file = barn
-
-    plt.figure("YCbCr")
-    Y, Cb, Cr, shape = encoder(file, (4, 4, 4))
-    Cb, Cr = subsampler((Cb, Cr), (4, 1, 0))
-    viewYCbCr(Y, Cb, Cr)
-
-    plt.figure("DCT")
-    Y_dct = dct(Y)
-    Cb_dct = dct(Cb)
-    Cr_dct = dct(Cr)
-    viewDct(Y_dct, Cb_dct, Cr_dct)
-
-    plt.figure("IDCT")
-    Y_inv = idct(Y_dct)
-    Cb_inv = idct(Cb_dct)
-    Cr_inv = idct(Cr_dct)
-    viewYCbCr(Y_inv, Cb_inv, Cr_inv)
-
-    decoded = decoder((Y_inv, Cb_inv, Cr_inv), shape)
-    plt.figure("Compressed")
-    viewImage(decoded)
-    plt.show()
 
 
 def main():
