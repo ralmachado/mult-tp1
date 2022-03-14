@@ -16,7 +16,7 @@ from pprint import pprint
 # ----- Packaged Encoder/Decoder -----#
 
 
-def encoder(path: str, sampling: tuple) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
+def encoder(path: str, sampling: tuple, qf: int = 75) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
     img = image.imread(path)
     shape = img.shape
     r, g, b = sepRGB(img)
@@ -24,11 +24,26 @@ def encoder(path: str, sampling: tuple) -> Tuple[np.ndarray, np.ndarray, np.ndar
     y, cb, cr = ycbcr(r, g, b)
     if sampling != (4, 4, 4):
         cb, cr = cvSubsampler((cb, cr), sampling)
+    y = blockDct(y)
+    cb = blockDct(cb)
+    cr = blockDct(cr)
+    y = DCPM(y)
+    cb = DCPM(cb)
+    cr = DCPM(cr)
+    y, cb, cr = quantize((y,cb,cr), qf)
+
     return y, cb, cr, shape
 
 
-def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple) -> np.ndarray:
+def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: int = 75) -> np.ndarray:
     y, cb, cr = ycbcr
+    y = iDCPM(y)
+    cb = iDCPM(cb)
+    cr = iDCPM(cr)
+    y,cb,cr = iQuantize((y,cb,cr), qf)
+    y = blockIdct(y)
+    cb = blockIdct(cb)
+    cr = blockIdct(cr)
     cb, cr = cvUpsampler(cb, cr, y.shape)
     img = rgb(y, cb, cr)
     img = unpadding(img, shape)
@@ -440,6 +455,7 @@ def main():
     barn = f"{basePath}/barn_mountains.bmp"
 
     file = barn
+    qualityFactor = 75
     pillow = Image.open(file)
     img = np.array(pillow)
     originalShape = img.shape
@@ -492,7 +508,7 @@ def main():
 
     # Quantization
     plt.figure("Quantization")
-    y, cb, cr = quantize((y,cb,cr), 50)
+    y, cb, cr = quantize((y,cb,cr), qualityFactor)
     viewDct(y, cb, cr)
 
     # DPCM
@@ -511,7 +527,7 @@ def main():
 
     # Inverse quantization
     plt.figure("Inverse Quantization")
-    y,cb,cr = iQuantize((y,cb,cr), 50)
+    y,cb,cr = iQuantize((y,cb,cr), qualityFactor)
     viewDct(y, cb, cr)
 
     # Whole-image inverse DCT
