@@ -11,6 +11,7 @@ from matplotlib import image, colors, pyplot as plt
 from scipy import ndimage, fftpack as fft
 import cv2
 from PIL import Image
+from pprint import pprint
 
 # ----- Packaged Encoder/Decoder -----#
 
@@ -322,26 +323,26 @@ def quantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) -> 
     QsY[QsY > 255] = 255
     QsC[QsC > 255] = 255
 
-    qy = np.empty(y.shape)
-    qcb = np.empty(cb.shape)
-    qcr = np.empty(cr.shape)
+    qy = np.empty(y.shape, dtype=y.dtype)
+    qcb = np.empty(cb.shape, dtype=cb.dtype)
+    qcr = np.empty(cr.shape, dtype=cr.dtype)
 
     for i in range(0, y.shape[0], 8):
         for j in range(0, y.shape[1], 8):
             qy[i:i+8, j:j+8] = y[i:i+8, j:j+8] / QsY
-    np.round(qy)
+    qy = np.round(qy)
 
     for i in range(0, cb.shape[0], 8):
         for j in range(0, cb.shape[1], 8):
             qcb[i:i+8, j:j+8] = cb[i:i+8, j:j+8] / QsC
-    np.round(qcb)
+    qcb = np.round(qcb)
 
     for i in range(0, cr.shape[0], 8):
         for j in range(0, cr.shape[1], 8):
             qcr[i:i+8, j:j+8] = cr[i:i+8, j:j+8] / QsC
-    np.round(qcr)
+    qcr = np.round(qcr)
 
-    return qy.astype(np.uint8), qcb.astype(np.uint8), qcr.astype(np.uint8)
+    return qy, qcb, qcr
 
 def iQuantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     qy, qcb, qcr = ycbcr
@@ -352,9 +353,9 @@ def iQuantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) ->
     QsY[QsY > 255] = 255
     QsC[QsC > 255] = 255
 
-    y = np.empty(y.shape)
-    cb = np.empty(cb.shape)
-    cr = np.empty(cr.shape)
+    y = np.empty(qy.shape, dtype=qy.dtype)
+    cb = np.empty(qcb.shape, dtype=qcb.dtype)
+    cr = np.empty(qcr.shape, dtype=qcr.dtype)
 
     for i in range(0, y.shape[0], 8):
         for j in range(0, y.shape[1], 8):
@@ -438,7 +439,7 @@ def main():
     logo = f"{basePath}/logo.bmp"
     barn = f"{basePath}/barn_mountains.bmp"
 
-    file = logo
+    file = barn
     pillow = Image.open(file)
     img = np.array(pillow)
     originalShape = img.shape
@@ -487,6 +488,30 @@ def main():
     y = blockDct(y, size=block)
     cb = blockDct(cb, size=block)
     cr = blockDct(cr, size=block)
+    viewDct(y, cb, cr)
+
+    # Quantization
+    plt.figure("Quantization")
+    y, cb, cr = quantize((y,cb,cr), 50)
+    viewDct(y, cb, cr)
+
+    # DPCM
+    plt.figure("DPCM")
+    y = DCPM(y)
+    cb = DCPM(cb)
+    cr = DCPM(cr)
+    viewDct(y, cb, cr)
+
+    # Inverse DPCM
+    plt.figure("Inverse DPCM")
+    y = iDCPM(y)
+    cb = iDCPM(cb)
+    cr = iDCPM(cr)
+    viewDct(y, cb, cr)
+
+    # Inverse quantization
+    plt.figure("Inverse Quantization")
+    y,cb,cr = iQuantize((y,cb,cr), 50)
     viewDct(y, cb, cr)
 
     # Whole-image inverse DCT
