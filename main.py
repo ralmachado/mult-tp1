@@ -85,6 +85,15 @@ def viewImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     plt.imshow(image, cmap=cmap)
 
 
+def viewComparison(image: np.ndarray, other: np.ndarray) -> None:
+    plt.subplot(121)
+    plt.axis("off")
+    plt.imshow(image)
+    plt.subplot(122)
+    plt.axis("off")
+    plt.imshow(image)
+
+
 def viewYCbCr(y: np.ndarray, cb: np.ndarray, cr: np.ndarray) -> None:
     plt.subplots_adjust(left=0.01, right=0.99, wspace=0.01)
     plt.subplot(1, 3, 1)
@@ -533,4 +542,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    image = np.array(Image.open("./imagens/peppers.bmp"))
+    viewImage(image, cmap="gray")
+    plt.show()
+
