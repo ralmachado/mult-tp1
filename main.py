@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage, fftpack as fft
 from typing import Tuple
+from pprint import pprint
 
 
 # ----- Packaged Encoder/Decoder -----#
@@ -27,9 +28,9 @@ def encoder(path: str, sampling: tuple, qf: int = 75) -> Tuple[np.ndarray, np.nd
     y = blockDct(y)
     cb = blockDct(cb)
     cr = blockDct(cr)
-    y = DCPM(y)
-    cb = DCPM(cb)
-    cr = DCPM(cr)
+    y = DPCM(y)
+    cb = DPCM(cb)
+    cr = DPCM(cr)
     y, cb, cr = quantize((y,cb,cr), qf)
 
     return y, cb, cr, shape
@@ -37,9 +38,9 @@ def encoder(path: str, sampling: tuple, qf: int = 75) -> Tuple[np.ndarray, np.nd
 
 def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: int = 75) -> np.ndarray:
     y, cb, cr = ycbcr
-    y = iDCPM(y)
-    cb = iDCPM(cb)
-    cr = iDCPM(cr)
+    y = iDPCM(y)
+    cb = iDPCM(cb)
+    cr = iDPCM(cr)
     y,cb,cr = iQuantize((y,cb,cr), qf)
     y = blockIdct(y)
     cb = blockIdct(cb)
@@ -349,6 +350,8 @@ def quantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) -> 
 
     QsY[QsY > 255] = 255
     QsC[QsC > 255] = 255
+    QsY[QsY < 1] = 1
+    QsC[QsC < 1] = 1
 
     qy = np.empty(y.shape, dtype=y.dtype)
     qcb = np.empty(cb.shape, dtype=cb.dtype)
@@ -380,6 +383,8 @@ def iQuantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) ->
 
     QsY[QsY > 255] = 255
     QsC[QsC > 255] = 255
+    QsY[QsY < 1] = 1
+    QsC[QsC < 1] = 1
 
     y = np.empty(qy.shape, dtype=qy.dtype)
     cb = np.empty(qcb.shape, dtype=qcb.dtype)
@@ -400,10 +405,10 @@ def iQuantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) ->
     return y, cb, cr
 
 
-#-----DCPM-----#
+#-----DPCM-----#
 
 
-def DCPM(x: np.ndarray) -> np.ndarray:
+def DPCM(x: np.ndarray) -> np.ndarray:
     dc0 = x[0,0]
     r,c = x.shape
     for i in range(0, r, 8):
@@ -417,7 +422,7 @@ def DCPM(x: np.ndarray) -> np.ndarray:
     return x
 
 
-def iDCPM(x:np.ndarray) -> np.ndarray:
+def iDPCM(x:np.ndarray) -> np.ndarray:
     r,c =  x.shape
     dc0 = x[0, 0]
     for i in range(0, r, 8):
@@ -509,16 +514,16 @@ def main():
     viewDct(y, cb, cr)
 
     # DPCM
-    y = DCPM(y)
-    cb = DCPM(cb)
-    cr = DCPM(cr)
+    y = DPCM(y)
+    cb = DPCM(cb)
+    cr = DPCM(cr)
     plt.figure("DPCM")
     viewDct(y, cb, cr)
 
     # Inverse DPCM
-    y = iDCPM(y)
-    cb = iDCPM(cb)
-    cr = iDCPM(cr)
+    y = iDPCM(y)
+    cb = iDPCM(cb)
+    cr = iDPCM(cr)
     plt.figure("Inverse DPCM")
     viewDct(y, cb, cr)
 
