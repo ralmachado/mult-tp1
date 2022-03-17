@@ -444,30 +444,36 @@ def main():
     pillow = Image.open(file)
     img = np.array(pillow)
     originalShape = img.shape
+    show = False
 
-    plt.figure("Original Image")
-    viewImage(img)
+    if show:
+        plt.figure("Original Image")
+        viewImage(img)
 
     # Separate RGB channels
     r, g, b = sepRGB(img)
-    plt.figure("RGB Channels")
-    viewRGB(r, g, b)
+    if show:
+        plt.figure("RGB Channels")
+        viewRGB(r, g, b)
 
     # Add padding to make image sides multiples of 16
     r, g, b = padding(r, g, b)
-    plt.figure("Padding")
-    viewRGB(r, g, b)
+    if show:
+        plt.figure("Padding")
+        viewRGB(r, g, b)
 
     # RGB to YCbCr colorspace conversion
     y, cb, cr = ycbcr(r, g, b)
-    plt.figure("RGB to YCbCr")
-    viewYCbCr(y, cb, cr)
+    if show:
+        plt.figure("RGB to YCbCr")
+        viewYCbCr(y, cb, cr)
 
     # Chroma subsampling
-    plt.figure("Chroma Subsampling")
     ratio = (4, 2, 0)
     cb, cr = cvSubsampler((cb,cr), ratio)
-    viewYCbCr(y, cb, cr)
+    if show:
+        plt.figure("Chroma Subsampling")
+        viewYCbCr(y, cb, cr)
 
     # Whole-image DCT
     # plt.figure("Whole-image DCT")
@@ -484,66 +490,70 @@ def main():
     # viewYCbCr(y, cb, cr)
 
     # Block DCT
+    block = 64
+    dy = blockDct(y, size=block)
+    dcb = blockDct(cb, size=block)
+    dcr = blockDct(cr, size=block)
+    plt.figure("Block DCT (64x64)")
+    viewDct(dy, dcb, dcr)
     block = 8
-    plt.figure("Block DCT")
     y = blockDct(y, size=block)
     cb = blockDct(cb, size=block)
     cr = blockDct(cr, size=block)
+    plt.figure("Block DCT (8x8)")
     viewDct(y, cb, cr)
 
     # Quantization
-    plt.figure("Quantization")
     y, cb, cr = quantize((y,cb,cr), qualityFactor)
+    plt.figure("Quantization")
     viewDct(y, cb, cr)
 
     # DPCM
-    plt.figure("DPCM")
     y = DCPM(y)
     cb = DCPM(cb)
     cr = DCPM(cr)
+    plt.figure("DPCM")
     viewDct(y, cb, cr)
 
     # Inverse DPCM
-    plt.figure("Inverse DPCM")
     y = iDCPM(y)
     cb = iDCPM(cb)
     cr = iDCPM(cr)
+    plt.figure("Inverse DPCM")
     viewDct(y, cb, cr)
 
     # Inverse quantization
-    plt.figure("Inverse Quantization")
     y,cb,cr = iQuantize((y,cb,cr), qualityFactor)
+    plt.figure("Inverse Quantization")
     viewDct(y, cb, cr)
 
     # Whole-image inverse DCT
-    plt.figure("Block Inverse DCT")
     y = blockIdct(y, size=block)
     cb = blockIdct(cb, size=block)
     cr = blockIdct(cr, size=block)
+    plt.figure("Block Inverse DCT")
     viewYCbCr(y, cb, cr)
 
     # Chroma upsampling
-    plt.figure("Upsampling")
     cb, cr = cvUpsampler(cb, cr, y.shape)
-    viewYCbCr(y, cb, cr)
+    if show:
+        plt.figure("Upsampling")
+        viewYCbCr(y, cb, cr)
 
     # YCbCr to RGB colorspace conversion
-    plt.figure("YCbCr to RGB")
     img = rgb(y, cb, cr)
     r, g, b = sepRGB(img) # Separation is only done here for YCbCr to RGB conversion
-    viewRGB(r, g, b)
+    if show:
+        plt.figure("YCbCr to RGB")
+        viewRGB(r, g, b)
 
     # Remove padding
-    plt.figure("Reconstructed Image")
     img = unpadding(img, originalShape)
+    plt.figure("Reconstructed Image")
     viewImage(img)
 
     plt.show()
 
 
 if __name__ == "__main__":
-    # main()
-    image = np.array(Image.open("./imagens/peppers.bmp"))
-    viewImage(image, cmap="gray")
-    plt.show()
-
+    main()
