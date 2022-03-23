@@ -11,7 +11,6 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage, fftpack as fft
 from typing import Tuple
-from pprint import pprint
 
 
 # ----- Packaged Encoder/Decoder -----#
@@ -23,17 +22,18 @@ def encoder(path: str, sampling: tuple, qf: int = 75) -> Tuple[np.ndarray, np.nd
     r, g, b = sepRGB(img)
     r, g, b = padding(r, g, b)
     y, cb, cr = ycbcr(r, g, b)
+    yOriginal = np.copy(y)
     if sampling != (4, 4, 4):
         cb, cr = cvSubsampler((cb, cr), sampling)
     y = blockDct(y)
     cb = blockDct(cb)
     cr = blockDct(cr)
+    y, cb, cr = quantize((y,cb,cr), qf)
     y = DPCM(y)
     cb = DPCM(cb)
     cr = DPCM(cr)
-    y, cb, cr = quantize((y,cb,cr), qf)
 
-    return y, cb, cr, shape
+    return y, cb, cr, shape, yOriginal
 
 
 def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: int = 75) -> np.ndarray:
@@ -48,7 +48,7 @@ def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: 
     cb, cr = cvUpsampler(cb, cr, y.shape)
     img = rgb(y, cb, cr)
     img = unpadding(img, shape)
-    return img
+    return img, y
 
 
 # ----- RGB Colormaps -----#
@@ -83,6 +83,7 @@ def viewImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
 
     # Create a new figure to display the image
     plt.axis("off")
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.01)
     plt.imshow(image, cmap=cmap)
 
 
@@ -321,12 +322,12 @@ def blockIdct(x: np.ndarray, size: int = 8) -> np.ndarray:
 
 
 QY = np.array([
-    [16, 11, 10, 16, 24, 40, 51, 61],
-    [12, 12, 14, 19, 26, 58, 60, 55],
-    [14, 13, 16, 24, 40, 57, 69, 56],
-    [14, 17, 22, 29, 51, 87, 80, 62],
-    [18, 22, 37, 56, 68, 109, 103, 77],
-    [24, 35, 55, 64, 81, 104, 113, 92],
+    [16, 11, 10, 16, 24,  40,  51,  61],
+    [12, 12, 14, 19, 26,  58,  60,  55],
+    [14, 13, 16, 24, 40,  57,  69,  56],
+    [14, 17, 22, 29, 51,  87,  80,  62],
+    [18, 22, 37, 56, 68,  109, 103, 77],
+    [24, 35, 55, 64, 81,  104, 113, 92],
     [49, 64, 78, 87, 103, 121, 120, 101],
     [72, 92, 95, 98, 112, 100, 103, 99]])
 
@@ -435,6 +436,40 @@ def iDPCM(x:np.ndarray) -> np.ndarray:
             x[i,j] = summ
     return x
 
+
+# ----- Metrics ----- #
+
+
+# barn_mountains.bmp
+# q = 75
+# DS = 4:2:0
+# MSE ~= 187
+# SNR ~= 25
+
+
+def MSE(x: np.ndarray, y: np.ndarray) -> np.float64:
+    h, w = x[:,:,0].shape
+    x = x.astype(np.float64)
+    y = y.astype(np.float64)
+    coef = 1 / (h * w)
+    return coef * (np.sum((x - y) ** 2))
+
+
+def RMSE(mse: np.float64) -> np.float64:
+    return mse ** (1 / 2)
+
+def SNR(x: np.ndarray, mse: np.float64) -> np.float64:
+    h, w = x[0].shape
+    x = x.astype(np.float64)
+    coef =  1 / (w * h)
+    power = coef * np.sum(x ** 2)
+    return 10 * np.log10(power / mse)
+
+
+def PSNR(x: np.ndarray, mse: np.float64) -> np.float64:
+    return 10 * np.log10((np.max(x) ** 2) / mse)
+
+
 # ----- Main ----- #
 
 
@@ -449,7 +484,7 @@ def main():
     pillow = Image.open(file)
     img = np.array(pillow)
     originalShape = img.shape
-    show = False
+    show = True
 
     if show:
         plt.figure("Original Image")
@@ -499,14 +534,16 @@ def main():
     dy = blockDct(y, size=block)
     dcb = blockDct(cb, size=block)
     dcr = blockDct(cr, size=block)
-    plt.figure("Block DCT (64x64)")
-    viewDct(dy, dcb, dcr)
+    if show:
+        plt.figure("Block DCT (64x64)")
+        viewDct(dy, dcb, dcr)
     block = 8
     y = blockDct(y, size=block)
     cb = blockDct(cb, size=block)
     cr = blockDct(cr, size=block)
-    plt.figure("Block DCT (8x8)")
-    viewDct(y, cb, cr)
+    if show:
+        plt.figure("Block DCT (8x8)")
+        viewDct(y, cb, cr)
 
     # Quantization
     y, cb, cr = quantize((y,cb,cr), qualityFactor)
@@ -517,27 +554,31 @@ def main():
     y = DPCM(y)
     cb = DPCM(cb)
     cr = DPCM(cr)
-    plt.figure("DPCM")
-    viewDct(y, cb, cr)
+    if show:
+        plt.figure("DPCM")
+        viewDct(y, cb, cr)
 
     # Inverse DPCM
     y = iDPCM(y)
     cb = iDPCM(cb)
     cr = iDPCM(cr)
-    plt.figure("Inverse DPCM")
-    viewDct(y, cb, cr)
+    if show:
+        plt.figure("Inverse DPCM")
+        viewDct(y, cb, cr)
 
     # Inverse quantization
-    y,cb,cr = iQuantize((y,cb,cr), qualityFactor)
+    y, cb, cr = iQuantize((y, cb, cr), qualityFactor)
+    # if show:
     plt.figure("Inverse Quantization")
     viewDct(y, cb, cr)
 
-    # Whole-image inverse DCT
+    # Inverse Block DCT
     y = blockIdct(y, size=block)
     cb = blockIdct(cb, size=block)
     cr = blockIdct(cr, size=block)
-    plt.figure("Block Inverse DCT")
-    viewYCbCr(y, cb, cr)
+    if show:
+        plt.figure("Block Inverse DCT")
+        viewYCbCr(y, cb, cr)
 
     # Chroma upsampling
     cb, cr = cvUpsampler(cb, cr, y.shape)
@@ -560,5 +601,35 @@ def main():
     plt.show()
 
 
+def metrics(filepath: str, qf: int = 75, show: bool = True, metrics: bool = True) -> np.ndarray:
+    # TODO Imagem de erro: abs(y0 - yr)
+    original = np.array(Image.open(filepath))
+    y, cb, cr, shape, yOriginal = encoder(filepath, (4,2,0), qf=qf)
+    compressed, yReconstructed = decoder((y,cb,cr), shape, qf=qf)
+    diff = np.absolute(yOriginal - yReconstructed)
+    if show:
+        plt.figure("Compressed")
+        viewImage(compressed)
+        plt.figure("Difference")
+        viewImage(diff, cmap="gray")
+    mse = MSE(original, compressed)
+    rmse = RMSE(mse)
+    snr = SNR(original, mse)
+    psnr = PSNR(original, mse)
+    if metrics:
+        print(f"MSE: {mse:.3f}\nRMSE: {rmse:.3f}")
+        print(f"SNR: {snr:.3f} dB\nPSNR: {psnr:.3f} dB")
+    plt.show()
+    return compressed, {'mse': mse, 'rmse': rmse, 'snr': snr, 'psnr': psnr}
+
+
+def codec(filepath: str, qf: int = 75):
+    compressed = metrics(filepath, qf, False, False)
+    plt.figure("Compressed image")
+    viewImage(compressed)
+    plt.show()
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    metrics("imagens/barn_mountains.bmp", qf=75)
