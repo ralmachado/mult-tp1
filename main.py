@@ -24,7 +24,7 @@ def encoder(path: str, sampling: tuple, qf: int = 75) -> Tuple[np.ndarray, np.nd
     y, cb, cr = ycbcr(r, g, b)
     yOriginal = np.copy(y)
     if sampling != (4, 4, 4):
-        cb, cr = cvSubsampler((cb, cr), sampling)
+        cb, cr = subsampler((cb, cr), sampling)
     y = blockDct(y)
     cb = blockDct(cb)
     cr = blockDct(cr)
@@ -45,7 +45,7 @@ def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: 
     y = blockIdct(y)
     cb = blockIdct(cb)
     cr = blockIdct(cr)
-    cb, cr = cvUpsampler(cb, cr, y.shape)
+    cb, cr = upsampler(cb, cr, y.shape)
     img = rgb(y, cb, cr)
     img = unpadding(img, shape)
     return img, y
@@ -87,31 +87,28 @@ def viewImage(image: np.ndarray, **kwargs: dict[str, any]) -> None:
     plt.imshow(image, cmap=cmap)
 
 
-def viewComparison(image: np.ndarray, other: np.ndarray) -> None:
-    plt.subplot(121)
-    plt.axis("off")
-    plt.imshow(image)
-    plt.subplot(122)
-    plt.axis("off")
-    plt.imshow(image)
-
-
 def viewYCbCr(y: np.ndarray, cb: np.ndarray, cr: np.ndarray) -> None:
     plt.subplots_adjust(left=0.01, right=0.99, wspace=0.01)
-    plt.subplot(1, 3, 1)
+    plt.subplot(131)
+    plt.title("Y Channel")
     viewImage(y, cmap="gray")
     plt.subplot(1, 3, 2)
+    plt.title("Cb Channel")
     viewImage(cb, cmap="gray")
     plt.subplot(1, 3, 3)
+    plt.title("Cr Channel")
     viewImage(cr, cmap="gray")
 
 def viewRGB(r: np.ndarray, g: np.ndarray, b: np.ndarray) -> None:
     plt.subplots_adjust(left=0.01, right=0.99, wspace=0.01)
     plt.subplot(1, 3, 1)
+    plt.title("Red Channel")
     viewImage(r, cmap=RED)
     plt.subplot(1, 3, 2)
+    plt.title("Green Channel")
     viewImage(g, cmap=GREEN)
     plt.subplot(1, 3, 3)
+    plt.title("Blue Channel")
     viewImage(b, cmap=BLUE)
 
 
@@ -170,6 +167,12 @@ def unpadding(img: np.ndarray, shape: np.shape) -> np.ndarray:
     return img[: shape[0], : shape[1], :]
 
 
+def viewPadding(r: np.ndarray, g: np.ndarray, b: np.ndarray):
+    img = joinRGB(r, g, b)
+    plt.title("Padding")
+    viewImage(img)
+
+
 # ----- Colorspace conversions -----#
 
 
@@ -203,7 +206,7 @@ def rgb(Y: np.ndarray, Cb: np.ndarray, Cr: np.ndarray) -> np.ndarray:
 #----- Chroma Resampling -----#
 
 
-def cvSubsampler(chroma: Tuple[np.ndarray, np.ndarray], ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
+def subsampler(chroma: Tuple[np.ndarray, np.ndarray], ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
     """Chroma downsampling using cv2."""
 
     if ratio == (4, 4, 4):
@@ -227,7 +230,7 @@ def cvSubsampler(chroma: Tuple[np.ndarray, np.ndarray], ratio: tuple) -> Tuple[n
     return cb, cr
 
 
-def cvUpsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarray, np.ndarray]:
+def upsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarray, np.ndarray]:
     """Chroma upsampling using cv2."""
 
     size = shape[::-1]
@@ -241,7 +244,7 @@ def cvUpsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarra
 # ----- Deprecated chroma resampling -----#
 
 
-def subsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
+def oldSubsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
     """
     Deprecated.
 
@@ -268,7 +271,7 @@ def subsampler(chroma: tuple, ratio: tuple) -> Tuple[np.ndarray, np.ndarray]:
     return (cb, cr)
 
 
-def upsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarray, np.ndarray]:
+def oldUpsampler(cb: np.ndarray, cr: np.ndarray, shape: tuple) -> Tuple[np.ndarray, np.ndarray]:
     """
     Deprecated.
 
@@ -510,7 +513,7 @@ def main():
 
     # Chroma subsampling
     ratio = (4, 2, 0)
-    cb, cr = cvSubsampler((cb,cr), ratio)
+    cb, cr = subsampler((cb,cr), ratio)
     if show:
         plt.figure("Chroma Subsampling")
         viewYCbCr(y, cb, cr)
@@ -581,7 +584,7 @@ def main():
         viewYCbCr(y, cb, cr)
 
     # Chroma upsampling
-    cb, cr = cvUpsampler(cb, cr, y.shape)
+    cb, cr = upsampler(cb, cr, y.shape)
     if show:
         plt.figure("Upsampling")
         viewYCbCr(y, cb, cr)
@@ -620,25 +623,6 @@ def metrics(filepath: str, qf: int = 75, show: bool = True, metrics: bool = True
         print(f"SNR: {snr:.3f} dB\nPSNR: {psnr:.3f} dB")
     plt.show()
     return compressed, {'mse': mse, 'rmse': rmse, 'snr': snr, 'psnr': psnr}
-
-
-def verboseMetrics(filepath: str, qf: int = 75):
-    original = np.array(Image.open(filepath))
-    y, cb, cr, shape, yOriginal = encoder(filepath, (4,2,0), qf=qf)
-    compressed, yReconstructed = decoder((y,cb,cr), shape, qf=qf)
-    diff = np.absolute(yOriginal - yReconstructed)
-    plt.figure()
-    plt.title("Compressed")
-    viewImage(compressed)
-    plt.figure()
-    plt.title("Difference")
-    viewImage(diff, cmap="gray")
-    mse = MSE(original, compressed)
-    rmse = RMSE(mse)
-    snr = SNR(original, mse)
-    psnr = PSNR(original, mse)
-    print(f"MSE: {mse:.3f}\nRMSE: {rmse:.3f}")
-    print(f"SNR: {snr:.3f} dB\nPSNR: {psnr:.3f} dB")
 
 
 def codec(filepath: str, qf: int = 75):
