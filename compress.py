@@ -1,10 +1,10 @@
 from main import metrics
 from PIL import Image
+from os import path, mkdir
 
 
 def main():
     basePath = "imagens"
-    savePath= "compressed"
     images = [
         f"{basePath}/barn_mountains.bmp",
         f"{basePath}/peppers.bmp",
@@ -13,12 +13,16 @@ def main():
 
     quality = [100, 75, 50, 25, 10]
 
-    for path in images:
-        name = path.split("/")[-1][:-4]
+    for imagepath in images:
+        name = imagepath.split("/")[-1][:-4]
+        savePath= f"compressed/{name}"
+        if not path.isdir(savePath):
+            mkdir(savePath)
         for qf in quality:
-            compressed, compressionMetrics = metrics(path, qf, False, False)
-            Image.fromarray(compressed).save(f"{savePath}/{name}_{qf}.png")
-            with open(f"{savePath}/{name}_{qf}.txt", "w") as f:
+            print(f"{name} - Quality: {qf}")
+            compressed, compressionMetrics = metrics(imagepath, qf, False, False)
+            Image.fromarray(compressed).save(f"{savePath}/{qf}.png")
+            with open(f"{savePath}/{qf}.txt", "w") as f:
                 f.write(f"MSE: {compressionMetrics['mse']}\n")
                 f.write(f"RMSE: {compressionMetrics['rmse']}\n")
                 f.write(f"SNR: {compressionMetrics['snr']}\n")

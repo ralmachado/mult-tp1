@@ -602,7 +602,6 @@ def main():
 
 
 def metrics(filepath: str, qf: int = 75, show: bool = True, metrics: bool = True) -> np.ndarray:
-    # TODO Imagem de erro: abs(y0 - yr)
     original = np.array(Image.open(filepath))
     y, cb, cr, shape, yOriginal = encoder(filepath, (4,2,0), qf=qf)
     compressed, yReconstructed = decoder((y,cb,cr), shape, qf=qf)
@@ -621,6 +620,25 @@ def metrics(filepath: str, qf: int = 75, show: bool = True, metrics: bool = True
         print(f"SNR: {snr:.3f} dB\nPSNR: {psnr:.3f} dB")
     plt.show()
     return compressed, {'mse': mse, 'rmse': rmse, 'snr': snr, 'psnr': psnr}
+
+
+def verboseMetrics(filepath: str, qf: int = 75):
+    original = np.array(Image.open(filepath))
+    y, cb, cr, shape, yOriginal = encoder(filepath, (4,2,0), qf=qf)
+    compressed, yReconstructed = decoder((y,cb,cr), shape, qf=qf)
+    diff = np.absolute(yOriginal - yReconstructed)
+    plt.figure()
+    plt.title("Compressed")
+    viewImage(compressed)
+    plt.figure()
+    plt.title("Difference")
+    viewImage(diff, cmap="gray")
+    mse = MSE(original, compressed)
+    rmse = RMSE(mse)
+    snr = SNR(original, mse)
+    psnr = PSNR(original, mse)
+    print(f"MSE: {mse:.3f}\nRMSE: {rmse:.3f}")
+    print(f"SNR: {snr:.3f} dB\nPSNR: {psnr:.3f} dB")
 
 
 def codec(filepath: str, qf: int = 75):
