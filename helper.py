@@ -1,10 +1,10 @@
 from main import *
 import matplotlib.pyplot as plt
 
-def verboseMetrics(filepath: str, qf: int = 75):
+def verboseMetrics(filepath: str, qf: int = 75, ratio: tuple = (4,2,0)):
     original = np.array(Image.open(filepath))
-    y, cb, cr, shape, yOriginal = encoder(filepath, (4,2,0), qf=qf)
-    compressed, yReconstructed = decoder((y,cb,cr), shape, qf=qf)
+    y, cb, cr, shape, yOriginal = encoder(filepath, ratio, qf=qf, verbose=True)
+    compressed, yReconstructed = decoder((y,cb,cr), shape, qf=qf, verbose=True)
     diff = np.absolute(yOriginal - yReconstructed)
     plt.figure()
     plt.subplot(121)

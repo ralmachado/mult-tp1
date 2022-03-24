@@ -11,12 +11,13 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage, fftpack as fft
 from typing import Tuple
+from pprint import pprint
 
 
 # ----- Packaged Encoder/Decoder -----#
 
 
-def encoder(path: str, sampling: tuple, qf: int = 75) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
+def encoder(path: str, sampling: tuple, qf: int = 75, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
     img = image.imread(path)
     shape = img.shape
     r, g, b = sepRGB(img)
@@ -29,18 +30,21 @@ def encoder(path: str, sampling: tuple, qf: int = 75) -> Tuple[np.ndarray, np.nd
     cb = blockDct(cb)
     cr = blockDct(cr)
     y, cb, cr = quantize((y,cb,cr), qf)
-    y = DPCM(y)
-    cb = DPCM(cb)
-    cr = DPCM(cr)
+    if verbose: pprint(y[0:8, 8:16])
+    y = dpcm(y)
+    cb = dpcm(cb)
+    cr = dpcm(cr)
+    if verbose: pprint(y[0:8, 8:16])
 
     return y, cb, cr, shape, yOriginal
 
 
-def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: int = 75) -> np.ndarray:
+def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: int = 75, verbose: bool = False) -> np.ndarray:
     y, cb, cr = ycbcr
-    y = iDPCM(y)
-    cb = iDPCM(cb)
-    cr = iDPCM(cr)
+    y = idpcm(y)
+    cb = idpcm(cb)
+    cr = idpcm(cr)
+    if verbose: pprint(y[0:8, 8:16])
     y,cb,cr = iQuantize((y,cb,cr), qf)
     y = blockIdct(y)
     cb = blockIdct(cb)
@@ -412,7 +416,7 @@ def iQuantize(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], qf: int = 75) ->
 #-----DPCM-----#
 
 
-def DPCM(x: np.ndarray) -> np.ndarray:
+def dpcm(x: np.ndarray) -> np.ndarray:
     dc0 = x[0,0]
     r,c = x.shape
     for i in range(0, r, 8):
@@ -426,7 +430,7 @@ def DPCM(x: np.ndarray) -> np.ndarray:
     return x
 
 
-def iDPCM(x:np.ndarray) -> np.ndarray:
+def idpcm(x:np.ndarray) -> np.ndarray:
     r,c =  x.shape
     dc0 = x[0, 0]
     for i in range(0, r, 8):
@@ -462,7 +466,7 @@ def RMSE(mse: np.float64) -> np.float64:
     return mse ** (1 / 2)
 
 def SNR(x: np.ndarray, mse: np.float64) -> np.float64:
-    h, w = x[0].shape
+    h, w = x[:,:,0].shape
     x = x.astype(np.float64)
     coef =  1 / (w * h)
     power = coef * np.sum(x ** 2)
@@ -554,17 +558,17 @@ def main():
     viewDct(y, cb, cr)
 
     # DPCM
-    y = DPCM(y)
-    cb = DPCM(cb)
-    cr = DPCM(cr)
+    y = dpcm(y)
+    cb = dpcm(cb)
+    cr = dpcm(cr)
     if show:
         plt.figure("DPCM")
         viewDct(y, cb, cr)
 
     # Inverse DPCM
-    y = iDPCM(y)
-    cb = iDPCM(cb)
-    cr = iDPCM(cr)
+    y = idpcm(y)
+    cb = idpcm(cb)
+    cr = idpcm(cr)
     if show:
         plt.figure("Inverse DPCM")
         viewDct(y, cb, cr)
