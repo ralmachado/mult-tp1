@@ -4,7 +4,7 @@ from os import path, mkdir
 
 
 def main():
-    basePath = "imagens"
+    basePath = "ex10"
     images = [
         f"{basePath}/barn_mountains.bmp",
         f"{basePath}/peppers.bmp",
