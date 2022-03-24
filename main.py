@@ -17,8 +17,7 @@ from pprint import pprint
 # ----- Packaged Encoder/Decoder -----#
 
 
-def encoder(path: str, sampling: tuple, qf: int = 75, verbose: bool = False) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
-    img = image.imread(path)
+def encoder(img: np.ndarray, sampling: tuple, qf: int = 75) -> Tuple[np.ndarray, np.ndarray, np.ndarray, tuple]:
     shape = img.shape
     r, g, b = sepRGB(img)
     r, g, b = padding(r, g, b)
@@ -30,21 +29,18 @@ def encoder(path: str, sampling: tuple, qf: int = 75, verbose: bool = False) -> 
     cb = blockDct(cb)
     cr = blockDct(cr)
     y, cb, cr = quantize((y,cb,cr), qf)
-    if verbose: pprint(y[0:8, 8:16])
     y = dpcm(y)
     cb = dpcm(cb)
     cr = dpcm(cr)
-    if verbose: pprint(y[0:8, 8:16])
 
     return y, cb, cr, shape, yOriginal
 
 
-def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: int = 75, verbose: bool = False) -> np.ndarray:
+def decoder(ycbcr: Tuple[np.ndarray, np.ndarray, np.ndarray], shape: tuple, qf: int = 75) -> np.ndarray:
     y, cb, cr = ycbcr
     y = idpcm(y)
     cb = idpcm(cb)
     cr = idpcm(cr)
-    if verbose: pprint(y[0:8, 8:16])
     y,cb,cr = iQuantize((y,cb,cr), qf)
     y = blockIdct(y)
     cb = blockIdct(cb)
@@ -610,7 +606,7 @@ def main():
 
 def metrics(filepath: str, qf: int = 75, show: bool = True, metrics: bool = True) -> np.ndarray:
     original = np.array(Image.open(filepath))
-    y, cb, cr, shape, yOriginal = encoder(filepath, (4,2,0), qf=qf)
+    y, cb, cr, shape, yOriginal = encoder(original, (4,2,0), qf=qf)
     compressed, yReconstructed = decoder((y,cb,cr), shape, qf=qf)
     diff = np.absolute(yOriginal - yReconstructed)
     if show:

@@ -56,3 +56,22 @@ def DPCM(image: np.ndarray, ratio: tuple = (4, 2, 0), qf: int = 75) -> None:
     cr = dpcm(cr)
     plt.figure()
     viewDct(y, cb, cr)
+
+
+def verboseMetrics(original: np.ndarray, qf: int = 75, ratio: tuple = (4,2,0)):
+    y, cb, cr, shape, yOriginal = encoder(original, ratio, qf=qf)
+    compressed, yReconstructed = decoder((y,cb,cr), shape, qf=qf)
+    diff = np.absolute(yOriginal - yReconstructed)
+    plt.figure()
+    plt.subplot(121)
+    plt.title("Compressed")
+    viewImage(compressed)
+    plt.subplot(122)
+    plt.title("Difference")
+    viewImage(diff, cmap="gray")
+    mse = MSE(original, compressed)
+    rmse = RMSE(mse)
+    snr = SNR(original, mse)
+    psnr = PSNR(original, mse)
+    print(f"MSE: {mse:.3f}\nRMSE: {rmse:.3f}")
+    print(f"SNR: {snr:.3f} dB\nPSNR: {psnr:.3f} dB")

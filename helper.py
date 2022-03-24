@@ -1,9 +1,8 @@
 from main import *
 import matplotlib.pyplot as plt
 
-def verboseMetrics(filepath: str, qf: int = 75, ratio: tuple = (4,2,0)):
-    original = np.array(Image.open(filepath))
-    y, cb, cr, shape, yOriginal = encoder(filepath, ratio, qf=qf, verbose=True)
+def verboseMetrics(original: np.ndarray, qf: int = 75, ratio: tuple = (4,2,0)):
+    y, cb, cr, shape, yOriginal = encoder(original, ratio, qf=qf, verbose=True)
     compressed, yReconstructed = decoder((y,cb,cr), shape, qf=qf, verbose=True)
     diff = np.absolute(yOriginal - yReconstructed)
     plt.figure()
