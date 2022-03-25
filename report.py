@@ -1,3 +1,12 @@
+""""
+TP1 - Multimédia
+Funções para visualizações no relatório
+
+David Leitão [2019223148]
+Rodrigo Machado [2019218299]
+Rui Costa [2019224237]
+"""
+
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,7 +22,7 @@ def colormodels(image: np.ndarray) -> None:
     plt.figure()
     viewYCbCr(y, cb, cr)
 
-    
+
 def subsampling(image: np.ndarray, ratio: tuple = (4, 2, 0)) -> None:
     r, g, b = sepRGB(image)
     r, g, b = padding(r, g, b)
