@@ -224,8 +224,8 @@ def subsampler(chroma: Tuple[np.ndarray, np.ndarray], ratio: tuple) -> Tuple[np.
         cb = cv2.resize(cb, dsize=None, fx=cbRatio, fy=cbRatio, interpolation=cv2.INTER_AREA)
         cr = cv2.resize(cr, dsize=None, fx=crRatio, fy=crRatio, interpolation=cv2.INTER_AREA)
     else:
-        cb = cv2.resize(cb, dsize=None, fy=cbRatio, interpolation=cv2.INTER_AREA)
-        cr = cv2.resize(cr, dsize=None, fy=crRatio, interpolation=cv2.INTER_AREA)
+        cb = cv2.resize(cb, dsize=None, fx=1, fy=cbRatio, interpolation=cv2.INTER_AREA)
+        cr = cv2.resize(cr, dsize=None, fx=1, fy=crRatio, interpolation=cv2.INTER_AREA)
 
     return cb, cr
 
@@ -512,7 +512,7 @@ def main():
         viewYCbCr(y, cb, cr)
 
     # Chroma subsampling
-    ratio = (4, 2, 0)
+    ratio = (4, 2, 2)
     cb, cr = subsampler((cb,cr), ratio)
     if show:
         plt.figure("Chroma Subsampling")
@@ -633,5 +633,5 @@ def codec(filepath: str, qf: int = 75):
 
 
 if __name__ == "__main__":
-    # main()
-    metrics("imagens/barn_mountains.bmp", qf=75)
+    main()
+    # metrics("imagens/barn_mountains.bmp", qf=75)

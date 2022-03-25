@@ -13,6 +13,13 @@ def colormodels(image: np.ndarray) -> None:
     plt.figure()
     viewYCbCr(y, cb, cr)
 
+    
+def subsampling(image: np.ndarray, ratio: tuple = (4, 2, 0)) -> None:
+    r, g, b = sepRGB(image)
+    r, g, b = padding(r, g, b)
+    y, cb, cr = ycbcr(r, g, b)
+    cb, cr = subsampler((cb,cr), ratio)
+    viewYCbCr(y, cb, cr)
 
 def DCT(image: np.ndarray, ratio: tuple = (4, 2, 0), block: int = 0) -> None:
     r, g, b = sepRGB(image)
